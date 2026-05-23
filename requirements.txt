@@ -1,1 +1,4 @@
 bottle>=0.12
+bottle
+psycopg2-binary
+python-dotenv
