@@ -1,46 +1,47 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-    <meta charset="utf-8" />
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ title }} - My Bottle Application</title>
-    <link rel="stylesheet" type="text/css" href="/static/content/bootstrap.min.css" />
-    <link rel="stylesheet" type="text/css" href="/static/content/site.css" />
-    <script src="/static/scripts/modernizr-2.6.2.js"></script>
+    <title>{{title or 'АФХ Система'}}</title>
+    <link rel="stylesheet" href="/static/css/base.css">
+    <link rel="stylesheet" href="/static/css/main.css">
 </head>
-
 <body>
-    <div class="navbar navbar-inverse navbar-fixed-top">
-        <div class="container">
-            <div class="navbar-header">
-                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
-                    <span class="icon-bar"></span>
-                    <span class="icon-bar"></span>
-                    <span class="icon-bar"></span>
-                </button>
-                <a href="/" class="navbar-brand">Application name</a>
-            </div>
-            <div class="navbar-collapse collapse">
-                <ul class="nav navbar-nav">
-                    <li><a href="/home">Home</a></li>
-                    <li><a href="/about">About</a></li>
-                    <li><a href="/contact">Contact</a></li>
-                </ul>
-            </div>
+    <a href="#main-content" class="skip-link">Перейти к содержимому</a>
+
+    <header class="app-header" role="banner">
+        <div class="container header-inner">
+            <a href="/" class="logo">🌾 АФХ Система</a>
+            <nav class="nav-links" aria-label="Основная навигация">
+                % if role == 'afh_accountant':
+                    <a href="/accountant/dashboard" class="nav-link">📊 Дашборд</a>
+                    <a href="/accountant/production_report" class="nav-link">📈 Отчёты</a>
+                % elif role == 'afh_support_manager':
+                    <a href="/support/dashboard" class="nav-link">🛟 Обращения</a>
+                % end
+                
+                % if role:
+                    <span class="role-badge">{{ 'Бухгалтер' if role == 'afh_accountant' else 'Поддержка' }}</span>
+                    <a href="/logout" class="nav-link" aria-label="Выйти из системы">🚪 Выйти</a>
+                % end
+            </nav>
         </div>
-    </div>
+    </header>
 
-    <div class="container body-content">
-        {{!base}}
-        <hr />
-        <footer>
-            <p>&copy; {{ year }} - My Bottle Application</p>
-        </footer>
-    </div>
+    <main id="main-content" class="container" role="main">
+        {{base}}
+    </main>
 
-    <script src="/static/scripts/jquery-1.10.2.js"></script>
-    <script src="/static/scripts/bootstrap.js"></script>
-    <script src="/static/scripts/respond.js"></script>
-
+    <footer class="app-footer" role="contentinfo">
+        <div class="container">
+            <div class="footer-links">
+                <a href="#">Политика конфиденциальности</a>
+                <a href="#">Техподдержка</a>
+                <a href="#">Документация</a>
+            </div>
+            <p>© 2026 АФХ Система. Все права защищены. v1.2.0</p>
+        </div>
+    </footer>
 </body>
 </html>

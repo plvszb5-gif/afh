@@ -2,36 +2,31 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Вход в систему АФХ</title>
-    <style>
-        body { font-family: Arial, sans-serif; max-width: 400px; margin: 50px auto; padding: 20px; }
-        h2 { color: #333; }
-        label { display: block; margin: 10px 0 5px; }
-        select, input { width: 100%; padding: 8px; margin-bottom: 15px; }
-        button { background: #4CAF50; color: white; padding: 10px 20px; border: none; cursor: pointer; }
-        button:hover { background: #45a049; }
-        .error { color: red; margin-bottom: 15px; }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход в АФХ</title>
+    <link rel="stylesheet" href="/static/css/base.css">
+    <link rel="stylesheet" href="/static/css/main.css">
 </head>
-<body>
-    <h2>Авторизация</h2>
-    
-    % if error:
-        <div class="error">{{error}}</div>
-    % end
-    
-    <form method="POST" action="/login">
-        <label for="role">Роль:</label>
-        <select name="role" id="role" required>
-            <option value="">-- Выберите роль --</option>
-            <option value="afh_accountant">Бухгалтер</option>
-            <option value="afh_support_manager">Оператор поддержки</option>
-        </select>
-        
-        <label for="password">Пароль:</label>
-        <input type="password" name="password" id="password" required placeholder="Введите пароль">
-        
-        <button type="submit">Войти</button>
-    </form>
+<body style="background:var(--bg-subtle); display:flex; align-items:center; justify-content:center; min-height:100vh;">
+    <div class="card" style="max-width:480px; width:100%;">
+        <h1 class="text-center">🔐 Авторизация</h1>
+        % if error:
+            <div style="background:#F8D7DA; color:#721C24; padding:12px; border-radius:8px; margin-bottom:16px;">{{error}}</div>
+        % end
+        <form method="POST" action="/login">
+            <div class="form-group">
+                <label class="form-label">Роль</label>
+                <select name="role" class="form-control" required>
+                    <option value="afh_accountant">Бухгалтер</option>
+                    <option value="afh_support_manager">Оператор поддержки</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Пароль</label>
+                <input type="password" name="password" class="form-control" required autocomplete="current-password">
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">Войти</button>
+        </form>
+    </div>
 </body>
 </html>

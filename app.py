@@ -1,10 +1,6 @@
-from bottle import debug
-debug(True)
-
 import os
 from bottle import Bottle, run, request, response, redirect, template, abort, static_file
 import psycopg2
-from psycopg2 import sql
 from functools import wraps
 from dotenv import load_dotenv
 
@@ -15,10 +11,10 @@ app = Bottle()
 # Конфигурация БД (в production используйте пул соединений, например pgBouncer или SQLAlchemy)
 DB_CONFIG = {
     'dbname': os.getenv('DB_NAME', 'afh'),
-    'user': os.getenv('DB_USER', 'afh_service'),
-    'password': os.getenv('DB_PASSWORD', 'your_service_password'),
+    'user': os.getenv('DB_USER', 'postgres'),
+    'password': os.getenv('DB_PASSWORD', ''),
     'host': os.getenv('DB_HOST', 'localhost'),
-    'port': os.getenv('DB_PORT', '5432')
+    'port': int(os.getenv('DB_PORT', '5432'))
 }
 
 SECRET = os.getenv('BOTTLE_SECRET', 'change_this_to_a_long_random_string')
@@ -40,6 +36,10 @@ def require_role(role):
             return fn(*args, **kwargs)
         return wrapper
     return decorator
+
+@app.route('/static/<filepath:path>')
+def serve_static(filepath):
+    return static_file(filepath, root='./static')
 
 @app.route('/login', method=['GET', 'POST'])
 def login():
@@ -63,14 +63,15 @@ def login():
                 is_valid = False
 
             if is_valid:
-                response.set_cookie('role', role, secret=SECRET, httponly=True, samesite='Strict')
-                # Явная карта маршрутов вместо опасного split()
+                response.set_cookie('role', role, secret=SECRET, httponly=True, samesite='Strict', secure=True)
                 routes = {'afh_accountant': 'accountant', 'afh_support_manager': 'support'}
                 redirect(f'/{routes[role]}/dashboard')
             elif not error:
                 error = "Неверная роль или пароль"
                 
-    return template('views/login', error=error, roles=['afh_accountant', 'afh_support_manager'])
+    # ⚠️ Важно: login.tpl НЕ должен использовать % rebase('layout'), 
+    # чтобы не подтягивать хедер/футер на страницу входа.
+    return template('login', error=error)
 
 @app.route('/logout')
 def logout():
@@ -83,14 +84,30 @@ def accountant_dashboard():
     conn = get_db()
     cur = conn.cursor()
     try:
-        cur.execute("SELECT * FROM v_overdue_membership_fees ORDER BY days_overdue DESC")
+        # ИСПРАВЛЕНИЕ:
+        # Представление v_overdue_membership_fees возвращает только 6 колонок и не содержит payment_number.
+        # Мы используем прямой запрос, чтобы получить все 8 колонок, нужных шаблону:
+        # 0: payment_number, 1: farm_name, 2: reporting_year, 3: amount, 
+        # 4: payment_date, 5: days_overdue, 6: payment_status, 7: basis_document_code
+        cur.execute("""
+            SELECT mf.payment_number, m.farm_name, mf.reporting_year, mf.amount, mf.payment_date, 
+                   (CURRENT_DATE - mf.payment_date) AS days_overdue, 
+                   mf.payment_status, mf.basis_document_code
+            FROM membership_fees mf
+            JOIN members m ON mf.member_id = m.member_id
+            WHERE mf.payment_status IN ('Ожидает оплаты', 'Частично оплачено')
+              AND (mf.payment_date IS NULL OR mf.payment_date < CURRENT_DATE - INTERVAL '30 days')
+            ORDER BY days_overdue DESC
+        """)
         overdue = cur.fetchall()
+        
+        # Запрос для закупок оставляем без изменений, там всё работает корректно
         cur.execute("SELECT * FROM v_collective_purchase_status ORDER BY planned_date")
         purchases = cur.fetchall()
     finally:
         cur.close()
         conn.close()
-    return template('views/accountant', overdue=overdue, purchases=purchases)
+    return template('accountant', overdue=overdue, purchases=purchases, role='afh_accountant')
 
 @app.route('/accountant/update_fee', method='POST')
 @require_role('afh_accountant')
@@ -112,7 +129,7 @@ def update_fee():
         redirect('/accountant/dashboard')
     except Exception as e:
         conn.rollback()
-        return f"Ошибка обновления: {e}"
+        redirect(f'/accountant/dashboard?error={e}')
     finally:
         cur.close()
         conn.close()
@@ -132,7 +149,7 @@ def production_report():
     finally:
         cur.close()
         conn.close()
-    return template('views/accountant_report', report=report, cols=cols, member_id=member_id, year=year)
+    return template('accountant_report', report=report, cols=cols, member_id=member_id, year=year)
 
 @app.route('/support/dashboard')
 @require_role('afh_support_manager')
@@ -147,7 +164,7 @@ def support_dashboard():
     finally:
         cur.close()
         conn.close()
-    return template('views/support', requests=requests, members=members)
+    return template('support', requests=requests, members=members, role='afh_support_manager')
 
 @app.route('/support/create_request', method='POST')
 @require_role('afh_support_manager')
@@ -168,7 +185,7 @@ def create_request():
         redirect('/support/dashboard')
     except Exception as e:
         conn.rollback()
-        return f"Ошибка создания обращения: {e}"
+        redirect(f'/support/dashboard?error={e}')
     finally:
         cur.close()
         conn.close()
@@ -190,7 +207,7 @@ def update_request():
         redirect('/support/dashboard')
     except Exception as e:
         conn.rollback()
-        return f"Ошибка обновления: {e}"
+        redirect(f'/support/dashboard?error={e}')
     finally:
         cur.close()
         conn.close()
